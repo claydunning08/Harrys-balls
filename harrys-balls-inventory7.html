@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harry's Balls • Inventory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        body {
+            font-family: 'Press Start 2P', system-ui;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .ball-bg { background: radial-gradient(circle at 30% 30%, #f97316, #000000); }
+        .inventory-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .inventory-card:hover { transform: scale(1.03) rotate(1deg); box-shadow: 0 25px 50px -12px rgb(249 115 22); }
+        .photo-preview { max-height: 240px; object-fit: cover; border: 4px solid #f97316; }
+        .location-pill { background: linear-gradient(90deg, #f97316, #eab308); }
+        .main-scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #f97316 #111; }
+        .modal-scroll { max-height: 82vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #f97316 #1f2937; padding-right: 8px; }
+        header { padding: 0.75rem 1.5rem; }
+        .sidebar-title { font-size: 2.1rem; line-height: 1.1; }
+        .sidebar-subtitle { font-size: 0.75rem; }
+    </style>
+</head>
+<body class="bg-black text-orange-300 ball-bg">
+    <div class="flex h-full">
+        <!-- SIDEBAR -->
+        <div class="w-72 bg-zinc-950 border-r border-orange-500 flex flex-col">
+            <div class="p-4 border-b border-orange-500 text-center">
+                <h1 class="sidebar-title font-bold text-white flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-basketball"></i>
+                    HARRY'S BALLS
+                </h1>
+                <p class="sidebar-subtitle text-orange-400 mt-0.5">INVENTORY HQ</p>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+                <button onclick="switchTab(0)" id="tab-0" class="tab-button w-full flex items-center gap-3 px-5 py-3 rounded-xl hover:bg-orange-900 text-left text-base font-bold active bg-orange-900">
+                    <i class="fa-solid fa-house"></i> DASHBOARD
+                </button>
+                <button onclick="switchTab(1)" id="tab-1" class="tab-button w-full flex items-center gap-3 px-5 py-3 rounded-xl hover:bg-orange-900 text-left text-base font-bold">
+                    <i class="fa-solid fa-map-marker-alt"></i> LOCATIONS
+                </button>
+                <button onclick="switchTab(2)" id="tab-2" class="tab-button w-full flex items-center gap-3 px-5 py-3 rounded-xl hover:bg-orange-900 text-left text-base font-bold">
+                    <i class="fa-solid fa-boxes-stacked"></i> INVENTORY
+                </button>
+                <button onclick="switchTab(3)" id="tab-3" class="tab-button w-full flex items-center gap-3 px-5 py-3 rounded-xl hover:bg-orange-900 text-left text-base font-bold">
+                    <i class="fa-solid fa-receipt"></i> SOLD LOG
+                </button>
+            </nav>
+            <div class="p-3 border-t border-orange-500 text-xs text-orange-400 text-center">
+                Data saved in browser
+            </div>
+        </div>
+
+        <!-- MAIN AREA -->
+        <div class="flex-1 flex flex-col">
+            <header class="bg-zinc-900 border-b border-orange-500 px-6 py-3 flex justify-between items-center shrink-0">
+                <div id="page-title" class="text-2xl font-bold text-white">DASHBOARD</div>
+                <div class="flex items-center gap-3">
+                    <button id="new-ball-btn" class="bg-orange-500 hover:bg-orange-600 text-black font-bold px-6 py-2.5 rounded-2xl flex items-center gap-2 shadow-md text-base">
+                        <i class="fa-solid fa-plus"></i> NEW BALL
+                    </button>
+                    <button id="add-location-btn" class="bg-emerald-500 hover:bg-emerald-600 text-black px-5 py-2.5 rounded-2xl flex items-center gap-2 text-base">
+                        <i class="fa-solid fa-plus"></i> ADD LOCATION
+                    </button>
+                </div>
+            </header>
+            <div class="main-scroll p-6 flex-1">
+                <!-- DASHBOARD -->
+                <div id="content-0" class="tab-content">
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="bg-zinc-900 rounded-2xl p-6 border border-orange-500">
+                            <div class="text-orange-400 text-sm">TOTAL BALLS</div>
+                            <div id="total-stock" class="text-6xl font-bold text-white mt-2">0</div>
+                        </div>
+                        <div class="bg-zinc-900 rounded-2xl p-6 border border-orange-500">
+                            <div class="text-orange-400 text-sm">LOCATIONS</div>
+                            <div id="total-locations" class="text-6xl font-bold text-white mt-2">0</div>
+                        </div>
+                        <div class="bg-zinc-900 rounded-2xl p-6 border border-orange-500">
+                            <div class="text-orange-400 text-sm">ITEM TYPES</div>
+                            <div id="total-items" class="text-6xl font-bold text-white mt-2">0</div>
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold mt-8 mb-4">Recent Sales / Discards</h2>
+                    <div id="recent-log" class="space-y-3"></div>
+                </div>
+
+                <!-- LOCATIONS -->
+                <div id="content-1" class="tab-content hidden">
+                    <div id="locations-container"></div>
+                </div>
+
+                <!-- INVENTORY -->
+                <div id="content-2" class="tab-content hidden">
+                    <input id="search-input" onkeyup="filterInventory()" type="text" placeholder="Search balls..."
+                           class="w-full bg-zinc-900 border border-orange-500 rounded-3xl px-6 py-4 text-lg placeholder:text-orange-600 focus:outline-none mb-6">
+                    <div id="inventory-grid" class="grid grid-cols-4 gap-6"></div>
+                </div>
+
+                <!-- SOLD LOG -->
+                <div id="content-3" class="tab-content hidden">
+                    <h2 class="text-2xl font-bold mb-6">Sold / Discarded Balls</h2>
+                    <div id="sold-log" class="space-y-4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW BALL MODAL -->
+    <div id="item-modal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+        <div onclick="event.stopImmediatePropagation()" class="bg-zinc-900 w-full max-w-4xl rounded-3xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div class="px-8 py-4 border-b border-orange-500 flex justify-between items-center shrink-0">
+                <h3 id="modal-title" class="text-xl font-bold">New Ball</h3>
+                <button onclick="closeModal()" class="text-3xl text-orange-400 hover:text-white transition-colors">×</button>
+            </div>
+            <div class="modal-scroll p-8 flex-1">
+                <div class="grid grid-cols-2 gap-8">
+                    <div>
+                        <div class="mb-3 text-orange-400 text-sm">PHOTO OF BALL</div>
+                        <div id="photo-container" onclick="document.getElementById('photo-upload').click()" 
+                             class="bg-black border-4 border-dashed border-orange-500 rounded-2xl h-64 flex items-center justify-center overflow-hidden relative cursor-pointer">
+                            <img id="modal-photo" class="photo-preview hidden w-full h-full object-cover">
+                            <div id="photo-placeholder" class="text-center">
+                                <i class="fa-solid fa-camera text-5xl text-orange-600 mb-3"></i>
+                                <p class="text-sm">Click to upload</p>
+                            </div>
+                        </div>
+                        <input type="file" id="photo-upload" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="modal-name" class="block text-orange-400 text-sm mb-1">BALL NAME</label>
+                            <input id="modal-name" type="text" class="w-full bg-black border border-orange-500 rounded-xl px-5 py-4 text-lg focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="modal-price" class="block text-orange-400 text-sm mb-1">PRICE ($)</label>
+                            <input id="modal-price" type="number" step="0.01" placeholder="19.99" class="w-full bg-black border border-orange-500 rounded-xl px-5 py-4 text-lg focus:outline-none">
+                        </div>
+                        <div>
+                            <label for="modal-bin" class="block text-orange-400 text-sm mb-1">BIN # / LOCATION CODE</label>
+                            <input id="modal-bin" type="text" placeholder="A-12 / Shelf-3B / BIN47" class="w-full bg-black border border-orange-500 rounded-xl px-5 py-4 text-lg focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-orange-400 text-sm mb-2">STOCK BY LOCATION</label>
+                            <div id="location-quantities" class="space-y-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="shrink-0 px-8 py-4 border-t border-orange-500 flex gap-4 bg-zinc-950">
+                <button onclick="saveAndOpenLocation()" 
+                        class="flex-1 bg-orange-500 hover:bg-orange-600 text-black font-bold py-4 rounded-2xl text-lg">
+                    ADD TO LOCATION
+                </button>
+                <button onclick="closeModal()" class="flex-1 border border-orange-500 text-orange-300 hover:bg-orange-900 font-bold py-4 rounded-2xl text-lg">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOCATION MODAL -->
+    <div id="location-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+        <div onclick="event.stopImmediatePropagation()" class="bg-zinc-900 w-full max-w-md rounded-3xl p-8">
+            <h3 class="text-xl font-bold mb-6">New Location</h3>
+            <label for="new-location-name" class="block text-orange-400 text-sm mb-1">LOCATION NAME</label>
+            <input id="new-location-name" type="text" placeholder="e.g. Main Store - Aurora" class="w-full bg-black border border-orange-500 rounded-2xl px-6 py-5 text-lg">
+            <div class="flex gap-4 mt-8">
+                <button onclick="closeLocationModal()" class="flex-1 py-4 border border-orange-500 rounded-2xl text-lg">CANCEL</button>
+                <button onclick="saveNewLocation()" class="flex-1 bg-emerald-500 text-black font-bold py-4 rounded-2xl text-lg">CREATE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let locations = [];
+        let items = [];
+        let soldLog = [];
+        let currentItemId = null;
+        let selectedLocationId = null;
+
+        if (!localStorage.getItem('harrysBalls_fresh_start')) {
+            localStorage.clear();
+            localStorage.setItem('harrysBalls_fresh_start', 'true');
+        }
+
+        function loadData() {
+            locations = JSON.parse(localStorage.getItem('harrysBalls_locations') || '[]');
+            items = JSON.parse(localStorage.getItem('harrysBalls_items') || '[]');
+            soldLog = JSON.parse(localStorage.getItem('harrysBalls_soldLog') || '[]');
+        }
+
+        function saveData() {
+            localStorage.setItem('harrysBalls_locations', JSON.stringify(locations));
+            localStorage.setItem('harrysBalls_items', JSON.stringify(items));
+            localStorage.setItem('harrysBalls_soldLog', JSON.stringify(soldLog));
+        }
+
+        function switchTab(n) {
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active', 'bg-orange-900'));
+            document.getElementById(`tab-${n}`).classList.add('active', 'bg-orange-900');
+
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`content-${n}`).classList.remove('hidden');
+
+            document.getElementById('page-title').textContent = ['DASHBOARD', 'LOCATIONS', 'INVENTORY', 'SOLD LOG'][n];
+
+            if (n === 0) renderDashboard();
+            if (n === 1) renderLocations();
+            if (n === 2) renderInventory();
+            if (n === 3) renderSoldLog();
+        }
+
+        function renderDashboard() {
+            let totalStock = 0;
+            items.forEach(i => Object.values(i.quantities || {}).forEach(q => totalStock += q || 0));
+
+            document.getElementById('total-stock').textContent = totalStock;
+            document.getElementById('total-locations').textContent = locations.length;
+            document.getElementById('total-items').textContent = items.length;
+
+            const rec = document.getElementById('recent-log');
+            rec.innerHTML = '';
+            const recent = [...soldLog].reverse().slice(0, 5);
+            if (recent.length === 0) {
+                rec.innerHTML = `<div class="text-orange-600 text-center py-8">No sales or discards yet</div>`;
+            } else {
+                recent.forEach(e => {
+                    const d = document.createElement('div');
+                    d.className = 'bg-zinc-900 rounded-2xl p-5 flex justify-between border border-orange-800';
+                    const action = e.discarded ? 'DISCARDED' : 'SOLD';
+                    d.innerHTML = `<div><span class="font-bold">${e.itemName}</span></div>
+                                   <div class="text-right"><div class="text-red-400 text-2xl font-bold">-${e.qty} (${action})</div><div class="text-xs text-orange-600">${new Date(e.date).toLocaleDateString()}</div></div>`;
+                    rec.appendChild(d);
+                });
+            }
+        }
+
+        function renderLocations() {
+            const container = document.getElementById('locations-container');
+            container.innerHTML = '';
+
+            if (selectedLocationId !== null) {
+                const loc = locations.find(l => l.id === selectedLocationId);
+                if (!loc) { selectedLocationId = null; renderLocations(); return; }
+
+                const header = document.createElement('div');
+                header.className = 'mb-6 flex items-center justify-between sticky top-0 bg-black z-10 py-2';
+                header.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <button onclick="selectedLocationId=null;renderLocations()" class="text-orange-400 hover:text-orange-300 text-xl">← Back</button>
+                        <h2 class="text-3xl font-bold">${loc.name}</h2>
+                    </div>
+                    <div class="text-xl text-orange-400">${items.reduce((s,i)=>s+(i.quantities?.[loc.id]||0),0)} balls</div>
+                `;
+                container.appendChild(header);
+
+                const itemsHere = items.filter(i => (i.quantities?.[loc.id]||0) > 0);
+                if (itemsHere.length === 0) {
+                    container.innerHTML += `<div class="text-center py-16 text-orange-600 text-xl">No balls here yet.</div>`;
+                    return;
+                }
+
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-3 gap-6';
+                itemsHere.forEach(item => {
+                    const qty = item.quantities[loc.id] || 0;
+                    const card = document.createElement('div');
+                    card.className = 'inventory-card bg-zinc-900 border-2 border-orange-500 rounded-3xl overflow-hidden cursor-pointer';
+                    card.dataset.itemId = item.id;
+
+                    const photo = item.photo ? `<img src="${item.photo}" class="w-full h-52 object-cover">` : `<div class="w-full h-52 bg-black flex items-center justify-center text-6xl text-orange-700"><i class="fa-solid fa-basketball"></i></div>`;
+                   
+                    card.innerHTML = `
+                        ${photo}
+                        <div class="p-5">
+                            <div class="font-bold text-xl text-white mb-1">${item.name}</div>
+                            <div class="space-y-1 mb-5">
+                                <div class="text-xs text-orange-400">QTY HERE</div>
+                                <div class="text-5xl font-bold text-white">${qty}</div>
+                                ${item.price?`<div class="text-emerald-400 font-bold text-2xl">$${parseFloat(item.price).toFixed(2)}</div>`:''}
+                                ${item.bin?`<div class="text-yellow-400 font-bold text-lg">BIN: ${item.bin}</div>`:''}
+                            </div>
+                            <div class="flex gap-3 mt-4">
+                                <button onclick="event.stopPropagation(); openItemModal(${item.id});" class="flex-1 bg-orange-500 text-black font-bold py-3 rounded-xl text-sm">EDIT</button>
+                                <button onclick="event.stopPropagation(); quickMarkSold(${item.id}, ${loc.id});" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm">MARK SOLD</button>
+                            </div>
+                        </div>
+                    `;
+                    card.onclick = () => openItemModal(item.id);
+                    grid.appendChild(card);
+                });
+                container.appendChild(grid);
+            } else {
+                if (locations.length === 0) {
+                    container.innerHTML = `<div class="text-center py-20 text-orange-600 text-xl">No locations yet. Click "ADD LOCATION" above.</div>`;
+                    return;
+                }
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-3 gap-6';
+                locations.forEach(loc => {
+                    let count = items.reduce((sum, i) => sum + (i.quantities?.[loc.id] || 0), 0);
+                    const card = document.createElement('div');
+                    card.className = 'bg-zinc-900 border border-orange-500 rounded-3xl p-8 cursor-pointer hover:border-orange-400 relative';
+                    card.innerHTML = `
+                        <div class="location-pill text-black text-xs font-bold px-5 py-2 inline-block rounded-3xl mb-4">${loc.name}</div>
+                        <div class="text-6xl font-bold text-white">${count}</div>
+                        <div class="text-orange-400 text-sm mt-1">BALLS</div>
+                        <button onclick="event.stopPropagation(); deleteLocation(${loc.id});" 
+                                class="absolute top-4 right-4 text-red-500 hover:text-red-600 text-2xl">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    `;
+                    card.onclick = () => { selectedLocationId = loc.id; renderLocations(); };
+                    grid.appendChild(card);
+                });
+                container.appendChild(grid);
+            }
+        }
+
+        function deleteLocation(locId) {
+            if (!confirm("Delete this location?\n\nAll stock in this location will be removed from every ball.")) return;
+
+            items.forEach(item => {
+                if (item.quantities) delete item.quantities[locId];
+            });
+
+            locations = locations.filter(l => l.id !== locId);
+
+            saveData();
+            selectedLocationId = null;
+            renderLocations();
+            renderDashboard();
+            renderInventory();
+        }
+
+        function quickMarkSold(itemId, locId) {
+            const qtyStr = prompt("How many sold?");
+            const qty = parseInt(qtyStr);
+            if (!qty || qty <= 0 || isNaN(qty)) return;
+
+            const item = items.find(i => i.id === itemId);
+            if (!item || !item.quantities[locId] || item.quantities[locId] < qty) {
+                alert("Not enough stock at this location!");
+                return;
+            }
+
+            item.quantities[locId] -= qty;
+            const locName = locations.find(l => l.id === locId)?.name || "Unknown";
+
+            soldLog.push({
+                date: new Date().toISOString(),
+                itemName: item.name,
+                qty,
+                locationName: locName,
+                discarded: false
+            });
+
+            saveData();
+
+            const totalRemaining = Object.values(item.quantities || {}).reduce((a, b) => a + b, 0);
+            if (totalRemaining === 0) {
+                items = items.filter(i => i.id !== itemId);
+                soldLog.push({
+                    date: new Date().toISOString(),
+                    itemName: item.name,
+                    qty: 0,
+                    locationName: "All Locations",
+                    discarded: true,
+                    note: "Out of stock"
+                });
+            }
+
+            renderLocations();
+            renderDashboard();
+            renderInventory();
+            renderSoldLog();
+        }
+
+        function saveAndOpenLocation() {
+            const name = document.getElementById('modal-name').value.trim();
+            if (!name) {
+                alert("Ball needs a name!");
+                return;
+            }
+
+            const price = parseFloat(document.getElementById('modal-price').value) || 0;
+            const bin = document.getElementById('modal-bin').value.trim();
+            const photo = document.getElementById('modal-photo').src || null;
+            const isBase64 = photo && photo.startsWith('data:image');
+
+            const quantities = {};
+            document.querySelectorAll('#location-quantities input').forEach(inp => {
+                quantities[parseInt(inp.dataset.loc)] = parseInt(inp.value) || 0;
+            });
+
+            // Create or update the item
+            let newItem;
+            if (currentItemId) {
+                newItem = items.find(i => i.id === currentItemId);
+                newItem.name = name;
+                newItem.price = price;
+                newItem.bin = bin || undefined;
+                if (isBase64) newItem.photo = photo;
+                newItem.quantities = quantities;
+            } else {
+                newItem = {
+                    id: Date.now(),
+                    name,
+                    price,
+                    bin: bin || undefined,
+                    photo: isBase64 ? photo : null,
+                    quantities
+                };
+                items.push(newItem);
+            }
+
+            saveData();
+            closeModal();
+
+            // Find the first location that has stock for this ball
+            let targetLocationId = null;
+            for (let locId in quantities) {
+                if (quantities[locId] > 0) {
+                    targetLocationId = parseInt(locId);
+                    break;
+                }
+            }
+
+            // Switch to Locations tab and open the specific location if possible
+            switchTab(1);
+
+            if (targetLocationId && locations.find(l => l.id === targetLocationId)) {
+                selectedLocationId = targetLocationId;
+            } else {
+                selectedLocationId = null;
+            }
+
+            renderLocations();
+            renderDashboard();
+            renderInventory();
+            renderSoldLog();
+        }
+
+        function addLocation() {
+            document.getElementById('new-location-name').value = '';
+            const modal = document.getElementById('location-modal');
+            modal.classList.remove('hidden');
+            modal.onclick = (e) => { if (e.target === modal) closeLocationModal(); };
+        }
+
+        function closeLocationModal() {
+            const modal = document.getElementById('location-modal');
+            modal.classList.add('hidden');
+            modal.onclick = null;
+        }
+
+        function saveNewLocation() {
+            const name = document.getElementById('new-location-name').value.trim();
+            if (!name) return alert("Location needs a name");
+            locations.push({ id: Date.now(), name });
+            saveData();
+            closeLocationModal();
+            renderLocations();
+            renderDashboard();
+        }
+
+        function renderInventory(filtered = null) {
+            const container = document.getElementById('inventory-grid');
+            container.innerHTML = '';
+            const toShow = filtered || items;
+            if (toShow.length === 0) {
+                container.innerHTML = `<div class="col-span-4 text-center py-20 text-orange-600 text-xl">No balls in inventory — add some!</div>`;
+                return;
+            }
+            toShow.forEach(item => {
+                let total = Object.values(item.quantities || {}).reduce((a,b)=>a+b,0);
+                const card = document.createElement('div');
+                card.className = 'inventory-card bg-zinc-900 border-2 border-orange-500 rounded-3xl overflow-hidden cursor-pointer';
+                const photo = item.photo ? `<img src="${item.photo}" class="w-full h-52 object-cover">` : `<div class="w-full h-52 bg-black flex items-center justify-center text-6xl text-orange-700"><i class="fa-solid fa-basketball"></i></div>`;
+                card.innerHTML = `
+                    ${photo}
+                    <div class="p-5">
+                        <div class="font-bold text-xl text-white mb-2">${item.name}</div>
+                        <div class="flex justify-between items-end">
+                            <div><div class="text-xs text-orange-400">TOTAL</div><div class="text-4xl font-bold text-white">${total}</div></div>
+                            <button onclick="event.stopPropagation(); openItemModal(${item.id});" class="bg-orange-500 text-black text-xs font-bold px-5 py-3 rounded-xl">MANAGE</button>
+                        </div>
+                    </div>
+                `;
+                card.onclick = () => openItemModal(item.id);
+                container.appendChild(card);
+            });
+        }
+
+        function filterInventory() {
+            const term = document.getElementById('search-input').value.toLowerCase().trim();
+            if (!term) return renderInventory();
+            const filtered = items.filter(i => i.name.toLowerCase().includes(term));
+            renderInventory(filtered);
+        }
+
+        function renderSoldLog() {
+            const container = document.getElementById('sold-log');
+            container.innerHTML = soldLog.length === 0 
+                ? `<div class="text-center py-20 text-orange-600">No sales or discards yet.</div>` 
+                : '';
+            soldLog.slice().reverse().forEach(entry => {
+                const div = document.createElement('div');
+                div.className = 'bg-zinc-900 border border-red-600 rounded-3xl p-6 flex gap-6';
+                const action = entry.discarded ? 'DISCARDED' : 'SOLD';
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <div class="text-red-400 text-sm">${action} • ${new Date(entry.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</div>
+                        <div class="text-2xl font-bold text-white mt-1">${entry.itemName}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-4xl font-bold text-red-400">-${entry.qty}</div>
+                        <div class="text-xs mt-2 text-orange-500">${entry.locationName}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function openItemModal(id = null) {
+            currentItemId = id;
+            const modal = document.getElementById('item-modal');
+            const title = document.getElementById('modal-title');
+            const nameInput = document.getElementById('modal-name');
+            const priceInput = document.getElementById('modal-price');
+            const binInput = document.getElementById('modal-bin');
+            const photoEl = document.getElementById('modal-photo');
+            const placeholder = document.getElementById('photo-placeholder');
+            const qtyDiv = document.getElementById('location-quantities');
+
+            title.textContent = id ? 'Edit Ball' : 'New Ball';
+            nameInput.value = id ? (items.find(i => i.id === id)?.name || '') : '';
+            priceInput.value = id ? (items.find(i => i.id === id)?.price || '') : '';
+            binInput.value = id ? (items.find(i => i.id === id)?.bin || '') : '';
+            photoEl.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+
+            if (id) {
+                const existingPhoto = items.find(i => i.id === id)?.photo;
+                if (existingPhoto) {
+                    photoEl.src = existingPhoto;
+                    photoEl.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
+            }
+
+            qtyDiv.innerHTML = '';
+            locations.forEach(loc => {
+                const curQty = id ? (items.find(i=>i.id===id)?.quantities?.[loc.id]||0) : 0;
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-4 bg-black rounded-xl p-4';
+                row.innerHTML = `
+                    <div class="flex-1 text-orange-300 font-bold">${loc.name}</div>
+                    <input type="number" min="0" value="${curQty}" data-loc="${loc.id}"
+                           class="w-24 bg-zinc-950 text-center text-2xl font-bold border border-orange-500 rounded-xl py-3 focus:outline-none">
+                `;
+                qtyDiv.appendChild(row);
+            });
+
+            modal.classList.remove('hidden');
+            modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('item-modal');
+            modal.classList.add('hidden');
+            modal.onclick = null;
+            currentItemId = null;
+        }
+
+        function handlePhotoUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                document.getElementById('modal-photo').src = ev.target.result;
+                document.getElementById('modal-photo').classList.remove('hidden');
+                document.getElementById('photo-placeholder').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function init() {
+            loadData();
+            if (locations.length === 0) {
+                locations = [{ id: Date.now(), name: "Main Store - Aurora" }];
+                saveData();
+            }
+
+            document.getElementById('new-ball-btn').onclick = () => openItemModal(null);
+            document.getElementById('add-location-btn').onclick = addLocation;
+
+            switchTab(0);
+            renderDashboard();
+            renderLocations();
+            renderInventory();
+            renderSoldLog();
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
